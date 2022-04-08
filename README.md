@@ -1,7 +1,7 @@
 README
 ======
 
-To update multiple IOS devices can be a timeconsuming task. The playbooks and roles in this repository can be used to automate this task.
+Updating multiple IOS devices can be a timeconsuming task. The playbooks and roles in this repository can be used to automate this task.
 The following steps  will be performed:
 
 - [ios-backup-role] Create Backup of Config and State 
