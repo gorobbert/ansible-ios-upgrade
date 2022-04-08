@@ -1,0 +1,8 @@
+---
+
+- name: Cisco IOS upgrade switches
+  hosts: switches
+  gather_facts: false
+
+  roles:
+    - ios-upgrade-role

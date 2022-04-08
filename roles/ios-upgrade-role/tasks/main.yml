@@ -1,0 +1,167 @@
+---
+# tasks file for ios-upgrade-role
+
+# This role will upgrade the IOS firmware of a switch/router
+#
+# Steps taken:
+#   - Create Backup of Config and State
+#   - Check Free disk space
+#   - Check model is supported (we have a firmware file)
+#   - Check if desired firmware != current firmware
+#   - Check if there is enough free space
+#   - Transfer desired firmware to device (TFTP/SCP)
+#   - Validate MD5 of transferred image
+#   - Configure device to boot new firmware
+#   - [TODO] Optionally reload the device
+#   - [TODO] delete old firmware
+#   
+
+# - name: Get IOS Facts
+#   ios_facts:
+#     gather_subset: all
+#   register: ios_facts
+
+# Required
+# Backup config and state
+# Get IOS Facts 
+- name: Create backup of config and state
+  include_role:
+    name: ios-backup-role
+
+- name: Get free space from storage
+  set_fact:
+    device_free_bytes: "{{ ansible_net_filesystems_info['flash:']['spacefree_kb'] * 1024 }}" 
+  # Note: this creates a string but when processing needs | int for comparison
+
+- name: Print important facts
+  debug:
+    msg: "Version: {{ ansible_net_version }}\nModel: {{ ansible_net_model }}\nImage: {{ ansible_net_image }}\nFree Bytes: {{ device_free_bytes }}"
+
+- name: Assert model is supported
+  assert:
+    that:
+      - ansible_net_model in firmware_per_model
+    fail_msg: "{{ ansible_net_model }} not in firmware_per_model"
+    success_msg: "Model is supported"
+
+- name: Extract the firmware for the supported model
+  set_fact:
+    firmware: "{{ firmware_per_model[ansible_net_model] }}"
+
+# Switces have '/' leading in filename
+- name: Check model is supported
+  assert:
+    that:
+      - ansible_net_image.split(':').1 | replace('/','') != firmware
+    fail_msg: "Current image {{ ansible_net_image.split(':').1 }} is equal to desired image {{ firmware }}"
+    success_msg: "Firmware is different. Upgrading to: {{ firmware }}"
+
+- name: Get info of firmware
+  stat:
+    path: "{{ role_path }}/files/{{ firmware }}"
+    get_checksum: yes
+    checksum_algorithm: md5
+  register:
+    firmware_stat
+    
+- name: Print info of firmware
+  debug:
+    msg: "Checksum: {{ firmware_stat.stat.checksum }}\nSize: {{firmware_stat.stat.size }}"
+
+- name: Assert there is enough free space
+  assert:
+    that:
+      - firmware_stat.stat.size < (device_free_bytes | int)
+    fail_msg: "There is not enough free space for the firmware image. Free: {{ device_free_bytes }}, Image size: {{ firmware_stat.stat.size }}"
+    success_msg: "There is enough free space to continue, device free size {{ device_free_bytes }} > image size {{ firmware_stat.stat.size }}"
+
+# SCP transfer
+# Requirements: pip install --user scp
+# Cisco side: conf t; ip scp server enable
+- name: Transfer firmware image to device through scp
+  net_put: 
+    src: "{{ role_path }}/files/{{ firmware }}"
+    dest: "flash:/{{ firmware }}"
+  vars: 
+    ansible_command_timeout: 600
+  when: transfer_method == "SCP"
+
+- name: Manually copy image over tftp
+  cli_command:
+    command: 'copy tftp: flash:'
+    check_all: True
+    prompt:
+      - Address
+      - Source
+      - Destination
+    answer:
+      - "{{ tftpserver }}"
+      - "{{ firmware }}"
+      - "{{ firmware }}"
+  vars:
+    ansible_command_timeout: 1800
+  when: transfer_method == "TFTP"
+
+- name: Get MD5sum of uploaded firmware
+  ios_command:
+    commands: "verify /md5 {{ firmware }}"
+  register: 
+    upload_md5
+  vars: 
+    ansible_command_timeout: 300
+
+- name: Assert that MD5 sum of uploaded firmware is correct
+  assert:
+    that:
+      - firmware_stat.stat.checksum in upload_md5['stdout'][0]
+    fail_msg: "Could not verify MD5 sum of uploaded image"
+    success_msg: "Succesfully verified MD5 sum of image to be {{ firmware_stat.stat.checksum }}"
+
+- name: Save running config to flash
+  ios_config:
+    save_when: always
+     
+# [TODO] Check if this works for routers also
+- name: Setting boot image to new firmware
+  ios_config:
+    lines:
+    - no boot system
+    - boot system flash:/{{ firmware }}
+    save_when: always
+      
+# [TODO] Conditionally reload
+- name: Reload device
+  cli_command:
+    command: reload
+    prompt:
+      - yes/no
+      - confirm
+    answer:
+      - y
+      - y
+
+# [TODO] Conditionally delete old firmware after succesfull upgrade
+
+# DEBUG STUFF #
+
+# - name: Print info of firmware
+#   debug:
+#     msg: "{{ upload_md5['stdout'][0] }}"
+
+# - name: run show ver manually
+#   ios_command:
+#     commands: show version | inc Version
+#   register: output
+
+# - name: print output
+#   debug:
+#     var: output.stdout_lines
+
+# - name: Copy image over tftp
+#   ios_command:
+#     commands:
+#       - command: "copy tftp://{{ tftpserver }}/{{ firmware }} flash:{{ firmware }}"
+#         prompt: "[{{ firmware }}]"
+#         answer: "\r"
+#   vars:
+#     ansible_command_timeout: 1800 

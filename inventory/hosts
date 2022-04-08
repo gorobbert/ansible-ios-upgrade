@@ -1,0 +1,10 @@
+[routers]
+r1
+
+[switches]
+192.168.18.11
+192.168.18.12
+
+[all:vars]
+tftpserver=192.168.18.30
+outputdir="{{ role_path }}/output/"

@@ -1,0 +1,8 @@
+---
+
+- name: Cisco IOS backup switches
+  hosts: switches
+  gather_facts: false
+
+  roles:
+    - ios-backup-role

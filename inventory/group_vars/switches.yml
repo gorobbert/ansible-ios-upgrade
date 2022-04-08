@@ -1,0 +1,14 @@
+---
+
+ansible_network_os: ios
+ansible_user: automator
+ansible_connection: network_cli
+
+firmware_per_model:
+    "WS-C3750X-48P": "c3750e-universalk9-mz.152-4.E6.bin"
+    "WS-C3750X-24old": "c3750e-universalk9-mz.152-4.E8.bin" # e5fba1c9dd68da71f649c48874557d5b
+    "WS-C3750X-24": "c3750e-universalk9-mz.152-4.E10.bin" # 6f3b3ddec62c77747c214cc7be555ec4
+    "WS-C3560CX-12PC-S": "c3560cx-universalk9-mz.152-7.E5.bin" # b765a3fbf698670c8c97c26270e71910
+    "WS-C2960X-24PD-L": "c2960x-universalk9-mz.152-7.E5.bin" # 283695e9b0667fb7505859746b420384
+
+transfer_method: "TFTP"

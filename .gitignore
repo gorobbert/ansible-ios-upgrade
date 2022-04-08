@@ -1,0 +1,13 @@
+# Ansible runtime and backups
+*.original
+*.tmp
+*.bkp
+*.retry
+*.*~
+
+# Do not store IOS images or backup output in this git repo
+roles/*/files/**
+roles/*/output/**
+
+# Exclude all binaries (IOS images etc)
+*.bin

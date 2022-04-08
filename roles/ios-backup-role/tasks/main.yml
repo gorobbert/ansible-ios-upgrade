@@ -1,0 +1,19 @@
+---
+# tasks file for ios-backup-role
+ 
+- name: Get IOS Facts
+  ios_facts:
+    gather_subset: all
+  register: ios_facts
+
+- name: Backup config in a separate file
+  local_action:
+    module: copy
+    content: "{{ ansible_net_config }}"
+    dest: "{{ outputdir }}/{{ now() }}_{{ inventory_hostname }}.config"
+
+- name: Backup all facts
+  local_action:
+    module: copy
+    content: "{{ ios_facts | to_nice_json }}"
+    dest: "{{ outputdir }}/{{ now() }}_{{ inventory_hostname }}.json"

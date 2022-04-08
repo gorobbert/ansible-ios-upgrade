@@ -1,0 +1,8 @@
+---
+
+- name: Cisco IOS backup routers
+  hosts: routers
+  gather_facts: false
+
+  roles:
+    - ios-backup-role

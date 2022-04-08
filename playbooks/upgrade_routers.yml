@@ -1,0 +1,8 @@
+---
+
+- name: Cisco IOS upgrade routers
+  hosts: routers
+  gather_facts: false
+
+  roles:
+    - ios-upgrade-role
